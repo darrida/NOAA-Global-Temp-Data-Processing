@@ -39,6 +39,8 @@ from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint:
 # url = 'https://www.ncei.noaa.gov/data/global-summary-of-the-day/access/'
 # export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
 # export PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS="prefect.engine.executors.LocalDaskExecutor"
+# prefect agent start --name dask_test
+# prefect register flow --file psql_sample.py --name psql_test_v2 --project Test
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
 def list_folders(data_dir: str):
