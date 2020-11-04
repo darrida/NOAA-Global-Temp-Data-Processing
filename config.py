@@ -16,3 +16,6 @@ class config():
     #    NOAA_TEMP_CSV_DIR = Path.cwd() / 'data_downloads'/ 'noaa_daily_avg_temps'
     #else:
     NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path.home() / 'data_downloads'/ 'noaa_daily_avg_temps'
+
+global local_config
+local_config = config()
