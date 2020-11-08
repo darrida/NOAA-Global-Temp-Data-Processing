@@ -51,14 +51,14 @@ def list_csvs():
     #print(year)
     csv_list = []
     data_dir = Path(config.NOAA_TEMP_CSV_DIR)
-    for year in os.listdir(path=data_dir):
-        print(year)
-        #csv_folder = (data_dir / str('1920')).rglob('*.csv') #Path(Path.cwd() / 'data' / str(year)).rglob('*.csv')
-        csv_folder = (data_dir / str(year)).rglob('*.csv')
-        csv_list = csv_list + [str(x) for x in csv_folder]
-        print(type(csv_list))
-        for i in csv_list:
-            print(i)
+    #for year in os.listdir(path=data_dir):
+    #print(year)
+    #csv_folder = (data_dir / str('1920')).rglob('*.csv') #Path(Path.cwd() / 'data' / str(year)).rglob('*.csv')
+    csv_folder = (data_dir / str('1995')).rglob('*.csv')
+    csv_list = csv_list + [str(x) for x in csv_folder]
+    print(type(csv_list))
+    #for i in csv_list:
+    #    print(i)
     return csv_list
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
@@ -174,7 +174,7 @@ def insert_records(list_of_tuples: list, waiting_for):
         pass
     print(f'INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
-with Flow(name="psql_test") as flow:
+with Flow(name="psql_test_v2") as flow:
     #p = PrefectSecret('DB')
     #data_dir = Parameter('data_dir', default=local_config.NOAA_TEMP_CSV_DIR)
     #t0_years = list_folders(data_dir=data_dir)
