@@ -47,7 +47,7 @@ from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint:
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
 def list_folders(data_dir: str):
     year_folders = os.listdir(path=data_dir)
-    print(year_folders)
+    #print(year_folders)
     return year_folders
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
@@ -56,7 +56,7 @@ def list_csvs():
     csv_list = []
     data_dir = Path(config.NOAA_TEMP_CSV_DIR)
     for year in os.listdir(path=data_dir):
-        print(year)
+        #print(year)
         #csv_folder = (data_dir / str('1920')).rglob('*.csv') #Path(Path.cwd() / 'data' / str(year)).rglob('*.csv')
         csv_folder = (data_dir / str(year)).rglob('*.csv')
         csv_list = csv_list + [str(x) for x in csv_folder]
