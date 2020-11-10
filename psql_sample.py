@@ -40,7 +40,8 @@ from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint:
 # export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
 # export PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS="prefect.engine.executors.LocalDaskExecutor"
 # prefect agent start --name dask_test
-# prefect register flow --file psql_sample.py --name psql_test_v2 --project Test
+# prefect register flow --file psql_sample.py --name psql_test_v2 --project 
+# ? add_default_labels=False
 
 # local testing: export NOAA_TEMP_CSV_DIR=$PWD/test/data_downloads/noaa_daily_avg_temps
 
