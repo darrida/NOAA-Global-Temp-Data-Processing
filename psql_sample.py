@@ -251,7 +251,7 @@ def insert_records(list_of_tuples: list, waiting_for):
         pass
     print(f'RECORD INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
-with Flow(name="psql_test") as flow:
+with Flow(name="psql_test_v2") as flow:
     #p = PrefectSecret('DB')
     #data_dir = Parameter('data_dir', default=local_config.NOAA_TEMP_CSV_DIR)
     #t0_years = list_folders(data_dir=data_dir)
