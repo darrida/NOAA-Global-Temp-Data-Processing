@@ -45,31 +45,16 @@ from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint:
 # local testing: export NOAA_TEMP_CSV_DIR=$PWD/test/data_downloads/noaa_daily_avg_temps
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
-def list_folders(data_dir: str):
-    year_folders = os.listdir(path=data_dir)
-    #print(year_folders)
-    return year_folders
-
-@task(log_stdout=True) # pylint: disable=no-value-for-parameter
 def list_csvs():
-    #print(year, 'this')
     csv_list = []
     data_dir = Path(config.NOAA_TEMP_CSV_DIR)
     for year in os.listdir(path=data_dir):
-        #print(year)
-        #csv_folder = (data_dir / str('1920')).rglob('*.csv') #Path(Path.cwd() / 'data' / str(year)).rglob('*.csv')
         csv_folder = (data_dir / str(year)).rglob('*.csv')
         csv_list = csv_list + [str(x) for x in csv_folder]
-        #print(type(csv_list))
-        #for i in csv_list:
-            #print(i)
-    #for year in os.listdir
-    #print(csv_list)
     return csv_list
 
 @task(log_stdout=True) # pylist: disable=no-value-for-parameter
 def list_db_years(waiting_for: str) -> list: #list of sets
-    #print('list db years')
     db_years = PostgresFetch(
         db_name=local_config.DB_NAME, #'climatedb', 
         user=local_config.DB_USER, #'postgres', 
@@ -81,8 +66,6 @@ def list_db_years(waiting_for: str) -> list: #list of sets
         order by date_update
         """
     ).run(password=PrefectSecret('DB'))
-    #print(db_years)
-    #print(len(db_years))
     db_years.insert(0, db_years.pop())   # Move last item in the list to the first
                                          # - We want to check the most recent year first, since csvs in that dir
                                          #   may not be complete (we are not doing the full number of csvs for some dirs
