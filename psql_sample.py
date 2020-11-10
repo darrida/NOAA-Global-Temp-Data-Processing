@@ -21,7 +21,7 @@ class config():
     
     # Directory options
     #NOAA_TEMP_CSV_DIR = Path.home() / 'github' / 'NOAA-Global-Temp-Data-Processing' / 'test' / 'data_downloads'/ 'noaa_daily_avg_temps'
-    NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path.home() / 'data_downloads'/ 'noaa_daily_avg_temps'
+    NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path.home() / 'data_downloads' / 'noaa_daily_avg_temps'
 
 local_config = config
 print(local_config.NOAA_TEMP_CSV_DIR)
@@ -42,6 +42,8 @@ from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint:
 # prefect agent start --name dask_test
 # prefect register flow --file psql_sample.py --name psql_test_v2 --project Test
 
+# local testing: export NOAA_TEMP_CSV_DIR=$PWD/test/data_downloads/noaa_daily_avg_temps
+
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
 def list_folders(data_dir: str):
     year_folders = os.listdir(path=data_dir)
@@ -50,7 +52,7 @@ def list_folders(data_dir: str):
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
 def list_csvs():
-    #print(year)
+    #print(year, 'this')
     csv_list = []
     data_dir = Path(config.NOAA_TEMP_CSV_DIR)
     for year in os.listdir(path=data_dir):
@@ -58,10 +60,83 @@ def list_csvs():
         #csv_folder = (data_dir / str('1920')).rglob('*.csv') #Path(Path.cwd() / 'data' / str(year)).rglob('*.csv')
         csv_folder = (data_dir / str(year)).rglob('*.csv')
         csv_list = csv_list + [str(x) for x in csv_folder]
-        print(type(csv_list))
-        for i in csv_list:
-            print(i)
+        #print(type(csv_list))
+        #for i in csv_list:
+            #print(i)
+    #for year in os.listdir
+    #print(csv_list)
     return csv_list
+
+@task(log_stdout=True) # pylist: disable=no-value-for-parameter
+def list_db_years(waiting_for: str) -> list: #list of sets
+    #print('list db years')
+    db_years = PostgresFetch(
+        db_name=local_config.DB_NAME, #'climatedb', 
+        user=local_config.DB_USER, #'postgres', 
+        host=local_config.DB_HOST, #'192.168.86.32', 
+        port=local_config.DB_PORT, #5432, 
+        fetch="all",
+        query="""
+        select distinct year, date_update from climate.csv_checker
+        order by date_update
+        """
+    ).run(password=PrefectSecret('DB'))
+    #print(db_years)
+    #print(len(db_years))
+    db_years.insert(0, db_years.pop())   # Move last item in the list to the first
+                                         # - We want to check the most recent year first, since csvs in that dir
+                                         #   may not be complete (we are not doing the full number of csvs for some dirs
+                                         #   with each run)
+                                         # - Then we move to the oldest checked folder in the list to move forward
+    print(db_years)
+    return db_years
+
+@task(log_stdout=True) # pylist: disable=no-value-for-parameter
+def select_session_csvs(local_csvs: list) -> list:
+    return_list = []
+
+    # LOCAL SET
+    csv_set = set()
+    for csv in local_csvs:
+        csv_list = csv.split('/') if '/' in csv else csv.split('\\')
+        csv_str = f'{csv_list[-2]}-{csv_list[-1]}'
+        csv_set.add(csv_str)
+
+    year_db_csvs = PostgresFetch(
+        db_name=local_config.DB_NAME, #'climatedb', 
+        user=local_config.DB_USER, #'postgres', 
+        host=local_config.DB_HOST, #'192.168.86.32', 
+        port=local_config.DB_PORT, #5432, 
+        fetch="all",
+        query=f"""
+        select year, station from climate.csv_checker
+        order by date_update
+        """
+    ).run(password=PrefectSecret('DB'))
+
+    # DB SET
+    year_db_set = set()
+    for year_db in year_db_csvs:
+        year_db_str = f'{year_db[0]}-{year_db[1]}'
+        year_db_set.add(year_db_str)
+
+    # SET DIFF, SORT
+    new_set = csv_set.difference(year_db_set)
+    new_set = sorted(new_set)
+
+    # CONVERT TO LIST, SELECT SHORT SUBSET
+    new_list = []
+    while len(new_list) < 50:
+        new_list.append(new_set.pop())
+    new_list = [x.split('-') for x in new_set]
+    new_list = new_list[:50]
+
+    # REBUILD LIST OF FILE PATH LOCATIONS
+    data_dir = Path(config.NOAA_TEMP_CSV_DIR)
+    return_list = [f'{data_dir}/{x[0]}/{x[1]}' for x in new_list]
+
+    return return_list
+                
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
 def open_csv(filename: str):
@@ -77,7 +152,7 @@ def insert_stations(list_of_tuples: list):#, password: str):
     insert = 0
     unique_key_violation = 0
 
-    print(len(list_of_tuples))
+    #print(len(list_of_tuples))
     insert = 0
     unique_key_violation = 0
     for row in list_of_tuples[1:2]:
@@ -105,7 +180,7 @@ def insert_stations(list_of_tuples: list):#, password: str):
             unique_key_violation += 1
         except InvalidTextRepresentation as e:
             print(e)
-    print(f'INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
+    print(f'STATION INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
 def insert_records(list_of_tuples: list, waiting_for):
@@ -174,18 +249,21 @@ def insert_records(list_of_tuples: list, waiting_for):
         ).run(password=PrefectSecret('DB'))
     except UniqueViolation:
         pass
-    print(f'INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
+    print(f'RECORD INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
 with Flow(name="psql_test") as flow:
     #p = PrefectSecret('DB')
     #data_dir = Parameter('data_dir', default=local_config.NOAA_TEMP_CSV_DIR)
     #t0_years = list_folders(data_dir=data_dir)
     t1_csvs = list_csvs()#.map(year=t0_years)
-    #t0_CSVs = list_csvs.map(data_dir=data_dir)
-    #t1 = open_csv(filename='01023099999.csv')
-    t2_records = open_csv.map(filename=t1_csvs)
-    t3_stations = insert_stations.map(list_of_tuples=t2_records)
-    t4_records = insert_records.map(list_of_tuples=t2_records, waiting_for=t3_stations)
+    #t2_dbyears = list_db_years(waiting_for=t1_csvs)
+    t2_session = select_session_csvs(local_csvs=t1_csvs)#, db_years=t2_dbyears)
+    #exit()
+        #t0_CSVs = list_csvs.map(data_dir=data_dir)
+        #t1 = open_csv(filename='01023099999.csv')
+    t3_records = open_csv.map(filename=t2_session)
+    t4_stations = insert_stations.map(list_of_tuples=t3_records)
+    t5_records = insert_records.map(list_of_tuples=t3_records, waiting_for=t4_stations)
 
 #flow.register(project_name="Test")#, executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=4))
 
