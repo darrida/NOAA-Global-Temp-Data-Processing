@@ -252,35 +252,13 @@ def insert_records(list_of_tuples: list, waiting_for):
     print(f'RECORD INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
 with Flow(name="psql_test_v2") as flow:
-    #p = PrefectSecret('DB')
-    #data_dir = Parameter('data_dir', default=local_config.NOAA_TEMP_CSV_DIR)
-    #t0_years = list_folders(data_dir=data_dir)
-    t1_csvs = list_csvs()#.map(year=t0_years)
-    #t2_dbyears = list_db_years(waiting_for=t1_csvs)
-    t2_session = select_session_csvs(local_csvs=t1_csvs)#, db_years=t2_dbyears)
-    #exit()
-        #t0_CSVs = list_csvs.map(data_dir=data_dir)
-        #t1 = open_csv(filename='01023099999.csv')
+    t1_csvs = list_csvs()
+    t2_session = select_session_csvs(local_csvs=t1_csvs)
     t3_records = open_csv.map(filename=t2_session)
     t4_stations = insert_stations.map(list_of_tuples=t3_records)
     t5_records = insert_records.map(list_of_tuples=t3_records, waiting_for=t4_stations)
 
-#flow.register(project_name="Test")#, executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=4))
 
 if __name__ == '__main__':
-    state = flow.run(executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=4))#address="tcp://192.168.169.61:8786"))
-    #flow.register(project_name="Test")#, executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=4))
+    state = flow.run(executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=4))
     assert state.is_successful()
-# if os.environ.get('PREFECT_ENV') == 'test':
-#     schedule = None#IntervalSchedule(interval=timedelta(minutes=0.1))
-# else:
-#     schedule = IntervalSchedule(interval=timedelta(days=3))
-
-# with Flow('NOAA Global Temp Data Processing', schedule=schedule) as flow:
-#     year = Parameter('year', default=date.today().year)
-#      ...
-
-# if local_config.PREFECT_ENV in ('local', 'test'):
-#     flow.run()
-# else:
-#     flow.register(project_name="Global Warming Data")
