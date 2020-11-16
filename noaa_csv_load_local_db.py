@@ -13,8 +13,8 @@ class config():
     # Postgres database connection info
     DB_NAME = os.environ.get('DB_NAME') or 'climatedb'
     DB_USER = os.environ.get('DB_USER') or 'postgres'
-    DB_HOST = os.environ.get('DB_HOST') or '192.168.86.32'
-    DB_PORT = os.environ.get('DB_PORT') or 5432
+    DB_HOST = os.environ.get('DB_HOST') or 'localhost' #'192.168.86.32'
+    DB_PORT = os.environ.get('DB_PORT') or '5432'
 
     # Prefect flow options
     PREFECT_ENV = os.environ.get('PREFECT_ENV') or 'prod'
@@ -35,6 +35,7 @@ from prefect.engine.signals import LOOP
 from prefect.engine.executors import LocalDaskExecutor
 import psycopg2 as pg
 from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint: disable=no-name-in-module
+
 
 # url = 'https://www.ncei.noaa.gov/data/global-summary-of-the-day/access/'
 # export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
@@ -129,7 +130,7 @@ def open_csv(filename: str):
         csv_reader = reader(read_obj)
         # Get all rows of csv from csv_reader object as list of tuples
         return list(map(tuple, csv_reader))
-    raise LOOP(message)
+    raise LOOP()
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
 def insert_stations(list_of_tuples: list):#, password: str):
@@ -235,14 +236,23 @@ def insert_records(list_of_tuples: list, waiting_for):
         pass
     print(f'RECORD INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
-with Flow(name="psql_test_v2") as flow:
+
+# env = RemoteEnvironment(
+#     executor = DaskExecutor(cluster_kwargs={"processes": False, "threads_per_worker": 8}, debug=True),
+#     executor_kwargs={"scheduler": "processes", "local_processes": True, "num_workers": 5},
+#     labels=["dask", "wsl2", "task_specific"]
+# )
+
+
+with Flow(name="noaa_load_local_db") as flow:#, executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=5)) as flow:
     t1_csvs = list_csvs()
     t2_session = select_session_csvs(local_csvs=t1_csvs)
     t3_records = open_csv.map(filename=t2_session)
     t4_stations = insert_stations.map(list_of_tuples=t3_records)
     t5_records = insert_records.map(list_of_tuples=t3_records, waiting_for=t4_stations)
 
+#flow.register(project_name="Global Warming Data")
 
 if __name__ == '__main__':
-    state = flow.run(executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=4))
+    state = flow.run(executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=5))
     assert state.is_successful()
