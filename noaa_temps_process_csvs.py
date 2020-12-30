@@ -32,7 +32,8 @@ from prefect import task, Flow, Parameter
 from prefect.tasks.postgres import PostgresExecute, PostgresFetch
 from prefect.tasks.secrets import EnvVarSecret, PrefectSecret
 from prefect.engine.signals import LOOP
-from prefect.engine.executors import LocalDaskExecutor
+#from prefect.engine.executors import LocalDaskExecutor
+from prefect.executors import LocalDaskExecutor
 import psycopg2 as pg
 from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint: disable=no-name-in-module
 
@@ -235,7 +236,7 @@ def insert_records(list_of_tuples: list, waiting_for):
         pass
     print(f'RECORD INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
-with Flow(name="psql_test_v2") as flow:
+with Flow(name="NOAA Temps: Process CSVs") as flow:
     t1_csvs = list_csvs()
     t2_session = select_session_csvs(local_csvs=t1_csvs)
     t3_records = open_csv.map(filename=t2_session)
