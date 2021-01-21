@@ -111,10 +111,10 @@ def select_session_csvs(local_csvs: list) -> list:
 
     # CONVERT TO LIST, SELECT SHORT SUBSET
     new_list = []
-    while len(new_list) < 50:
+    while len(new_list) < 40:
         new_list.append(new_set.pop())
     new_list = [x.split('-') for x in new_set]
-    new_list = new_list[:50]
+    new_list = new_list[:40]
 
     # REBUILD LIST OF FILE PATH LOCATIONS
     data_dir = Path(config.NOAA_TEMP_CSV_DIR)
