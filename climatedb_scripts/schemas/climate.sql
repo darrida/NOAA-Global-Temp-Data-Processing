@@ -3,4 +3,4 @@
 -- DROP SCHEMA climate ;
 
 CREATE SCHEMA climate
-    AUTHORIZATION postgres;
+    AUTHORIZATION ben;

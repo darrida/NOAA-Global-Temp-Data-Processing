@@ -14,7 +14,7 @@ import psycopg2 as pg
 
 
 connection = pg.connect(user = "postgres",
-                password = #"port estimate emission",
+                password = "port estimate emission",
                 host = "localhost",#"localhost",
                 port = "5432",
                 database = "climatedb")

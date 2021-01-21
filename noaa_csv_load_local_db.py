@@ -36,7 +36,6 @@ from prefect.engine.executors import LocalDaskExecutor
 import psycopg2 as pg
 from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint: disable=no-name-in-module
 
-
 # url = 'https://www.ncei.noaa.gov/data/global-summary-of-the-day/access/'
 # export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
 # export PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS="prefect.engine.executors.LocalDaskExecutor"
@@ -67,7 +66,7 @@ def list_db_years(waiting_for: str) -> list: #list of sets
         select distinct year, date_update from climate.csv_checker
         order by date_update
         """
-    ).run(password=PrefectSecret('DB'))
+    ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
     db_years.insert(0, db_years.pop())   # Move last item in the list to the first
                                          # - We want to check the most recent year first, since csvs in that dir
                                          #   may not be complete (we are not doing the full number of csvs for some dirs
@@ -97,7 +96,7 @@ def select_session_csvs(local_csvs: list) -> list:
         select year, station from climate.csv_checker
         order by date_update
         """
-    ).run(password=PrefectSecret('DB'))
+    ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
 
     # DB SET
     year_db_set = set()
@@ -159,7 +158,7 @@ def insert_stations(list_of_tuples: list):#, password: str):
                 """, 
                 data=(station, latitude, longitude, elevation, name), 
                 commit=True,
-            ).run(password=PrefectSecret('DB'))
+            ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
             insert += 1
         except UniqueViolation:
             unique_key_violation += 1
@@ -213,7 +212,7 @@ def insert_records(list_of_tuples: list, waiting_for):
                      stp, stp_attributes, visib, visib_attributes, wdsp, wdsp_attributes, mxspd, gust, 
                      max_v, max_attributes, min_v, min_attributes, prcp, prcp_attributes, sndp, frshtt),
                 commit=True,
-            ).run(password=PrefectSecret('DB'))
+            ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
             insert += 1
         except UniqueViolation:
             unique_key_violation += 1
@@ -231,7 +230,7 @@ def insert_records(list_of_tuples: list, waiting_for):
             """, 
             data=(csv_filename, date[0:4]),
             commit=True,
-        ).run(password=PrefectSecret('DB'))
+        ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
     except UniqueViolation:
         pass
     print(f'RECORD INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
@@ -244,7 +243,7 @@ def insert_records(list_of_tuples: list, waiting_for):
 # )
 
 
-with Flow(name="noaa_load_local_db") as flow:#, executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=5)) as flow:
+with Flow(name="noaa_load_local_db", executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=5)) as flow:
     t1_csvs = list_csvs()
     t2_session = select_session_csvs(local_csvs=t1_csvs)
     t3_records = open_csv.map(filename=t2_session)
@@ -254,5 +253,5 @@ with Flow(name="noaa_load_local_db") as flow:#, executor=LocalDaskExecutor(sched
 #flow.register(project_name="Global Warming Data")
 
 if __name__ == '__main__':
-    state = flow.run(executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=5))
+    state = flow.run()
     assert state.is_successful()
