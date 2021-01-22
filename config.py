@@ -4,8 +4,8 @@ from pathlib import Path
 class config():
     # Postgres database connection info
     DB_NAME = os.environ.get('DB_NAME') or 'climatedb'
-    DB_USER = os.environ.get('DB_USER') or 'postgres'
-    DB_HOST = os.environ.get('DB_HOST') or '192.168.86.32'
+    DB_USER = os.environ.get('DB_USER') or 'ben'
+    DB_HOST = os.environ.get('DB_HOST') or '127.0.0.1'
     DB_PORT = os.environ.get('DB_PORT') or 5432
 
     # Prefect flow options

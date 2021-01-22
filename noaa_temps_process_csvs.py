@@ -12,8 +12,8 @@ import os
 class config():
     # Postgres database connection info
     DB_NAME = os.environ.get('DB_NAME') or 'climatedb'
-    DB_USER = os.environ.get('DB_USER') or 'postgres'
-    DB_HOST = os.environ.get('DB_HOST') or '192.168.86.32'
+    DB_USER = os.environ.get('DB_USER') or 'ben'
+    DB_HOST = os.environ.get('DB_HOST') or 'localhost'
     DB_PORT = os.environ.get('DB_PORT') or 5432
 
     # Prefect flow options
@@ -29,11 +29,12 @@ print(local_config.NOAA_TEMP_CSV_DIR)
 # PyPI
 import prefect
 from prefect import task, Flow, Parameter
-from prefect.tasks.postgres import PostgresExecute, PostgresFetch
-from prefect.tasks.secrets import EnvVarSecret, PrefectSecret
+from prefect.tasks.postgres import PostgresExecute, PostgresFetch, PostgresExecuteMany
+from prefect.tasks.secrets import PrefectSecret
 from prefect.engine.signals import LOOP
 #from prefect.engine.executors import LocalDaskExecutor
-from prefect.executors import LocalDaskExecutor
+#from prefect.executors import LocalDaskExecutor
+from prefect.executors.dask import LocalDaskExecutor
 import psycopg2 as pg
 from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint: disable=no-name-in-module
 
@@ -67,7 +68,7 @@ def list_db_years(waiting_for: str) -> list: #list of sets
         select distinct year, date_update from climate.csv_checker
         order by date_update
         """
-    ).run(password=PrefectSecret('NOAA_LOCAL_DB'))
+    ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
     db_years.insert(0, db_years.pop())   # Move last item in the list to the first
                                          # - We want to check the most recent year first, since csvs in that dir
                                          #   may not be complete (we are not doing the full number of csvs for some dirs
@@ -77,7 +78,7 @@ def list_db_years(waiting_for: str) -> list: #list of sets
     return db_years
 
 @task(log_stdout=True) # pylist: disable=no-value-for-parameter
-def select_session_csvs(local_csvs: list) -> list:
+def select_session_csvs(local_csvs: list, job_size: int) -> list:
     return_list = []
 
     # LOCAL SET
@@ -97,7 +98,7 @@ def select_session_csvs(local_csvs: list) -> list:
         select year, station from climate.csv_checker
         order by date_update
         """
-    ).run(password=PrefectSecret('NOAA_LOCAL_DB'))
+    ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
 
     # DB SET
     year_db_set = set()
@@ -111,10 +112,10 @@ def select_session_csvs(local_csvs: list) -> list:
 
     # CONVERT TO LIST, SELECT SHORT SUBSET
     new_list = []
-    while len(new_list) < 40:
+    while len(new_list) < job_size:
         new_list.append(new_set.pop())
     new_list = [x.split('-') for x in new_set]
-    new_list = new_list[:40]
+    new_list = new_list[:job_size]
 
     # REBUILD LIST OF FILE PATH LOCATIONS
     data_dir = Path(config.NOAA_TEMP_CSV_DIR)
@@ -159,7 +160,7 @@ def insert_stations(list_of_tuples: list):#, password: str):
                 """, 
                 data=(station, latitude, longitude, elevation, name), 
                 commit=True,
-            ).run(password=PrefectSecret('NOAA_LOCAL_DB'))
+            ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
             insert += 1
         except UniqueViolation:
             unique_key_violation += 1
@@ -169,8 +170,9 @@ def insert_stations(list_of_tuples: list):#, password: str):
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
 def insert_records(list_of_tuples: list, waiting_for):
-    insert = 0
+    #insert = 0
     unique_key_violation = 0
+    new_list = []
     for row in list_of_tuples[1:]:
         date=row[1]
         station=row[0]
@@ -196,27 +198,33 @@ def insert_records(list_of_tuples: list, waiting_for):
         prcp_attributes=row[25]
         sndp=row[26]
         frshtt=row[27]
-        try:
-            PostgresExecute(
-                db_name=local_config.DB_NAME, #'climatedb', 
-                user=local_config.DB_USER, #'postgres', 
-                host=local_config.DB_HOST, #'192.168.86.32', 
-                port=local_config.DB_PORT, #5432,  
-                query="""
-                insert into climate.noaa_global_daily_temps 
-                    (date, station, temp, temp_attributes, dewp, dewp_attributes, slp, slp_attributes, 
-                     stp, stp_attributes, visib, visib_attributes, wdsp, wdsp_attributes, mxspd, gust, 
-                     max, max_attributes, min, min_attributes, prcp, prcp_attributes, sndp, frshtt)
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, 
-                data=(date, station, temp, temp_attributes, dewp, dewp_attributes, slp, slp_attributes, 
-                     stp, stp_attributes, visib, visib_attributes, wdsp, wdsp_attributes, mxspd, gust, 
-                     max_v, max_attributes, min_v, min_attributes, prcp, prcp_attributes, sndp, frshtt),
-                commit=True,
-            ).run(password=PrefectSecret('NOAA_LOCAL_DB'))
-            insert += 1
-        except UniqueViolation:
-            unique_key_violation += 1
+        new_tuple = (date, station, temp, temp_attributes, dewp, dewp_attributes, slp, slp_attributes, 
+                    stp, stp_attributes, visib, visib_attributes, wdsp, wdsp_attributes, mxspd, gust, 
+                    max_v, max_attributes, min_v, min_attributes, prcp, prcp_attributes, sndp, frshtt)
+        new_list.append(new_tuple)
+        insert = len(new_list)
+    try:
+        PostgresExecuteMany(
+            db_name=local_config.DB_NAME, #'climatedb', 
+            user=local_config.DB_USER, #'postgres', 
+            host=local_config.DB_HOST, #'192.168.86.32', 
+            port=local_config.DB_PORT, #5432,  
+            query="""
+            insert into climate.noaa_global_daily_temps 
+                (date, station, temp, temp_attributes, dewp, dewp_attributes, slp, slp_attributes, 
+                    stp, stp_attributes, visib, visib_attributes, wdsp, wdsp_attributes, mxspd, gust, 
+                    max, max_attributes, min, min_attributes, prcp, prcp_attributes, sndp, frshtt)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, 
+            data=new_list,
+                 #(date, station, temp, temp_attributes, dewp, dewp_attributes, slp, slp_attributes, 
+                 #   stp, stp_attributes, visib, visib_attributes, wdsp, wdsp_attributes, mxspd, gust, 
+                 #   max_v, max_attributes, min_v, min_attributes, prcp, prcp_attributes, sndp, frshtt),
+            commit=True,
+        ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
+        # insert += 1
+    except UniqueViolation:
+        unique_key_violation += 1
     try:
         csv_filename = station + '.csv'
         PostgresExecute(
@@ -231,19 +239,22 @@ def insert_records(list_of_tuples: list, waiting_for):
             """, 
             data=(csv_filename, date[0:4]),
             commit=True,
-        ).run(password=PrefectSecret('NOAA_LOCAL_DB'))
+        ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
     except UniqueViolation:
         pass
     print(f'RECORD INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
-with Flow(name="NOAA Temps: Process CSVs") as flow:
+executor=LocalDaskExecutor(scheduler="processes", num_workers=16)#, local_processes=True)
+with Flow(name="NOAA Temps: Process CSVs", executor=executor) as flow:
     t1_csvs = list_csvs()
-    t2_session = select_session_csvs(local_csvs=t1_csvs)
+    t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=200)
     t3_records = open_csv.map(filename=t2_session)
     t4_stations = insert_stations.map(list_of_tuples=t3_records)
     t5_records = insert_records.map(list_of_tuples=t3_records, waiting_for=t4_stations)
 
 
 if __name__ == '__main__':
-    state = flow.run(executor=LocalDaskExecutor(scheduler="processes", local_processes=True, num_workers=4))
+    # if os.environ.get('PREFECT_LOCAL') == 'true':
+    #     prefect.config.cloud.use_local_secrets = True
+    state = flow.run()#executor=LocalDaskExecutor(scheduler="processes", num_workers=6))#, local_processes=True)
     assert state.is_successful()
