@@ -142,7 +142,7 @@ def insert_stations(list_of_tuples: list):#, password: str):
     insert = 0
     unique_key_violation = 0
     for row in list_of_tuples[1:2]:
-        station = row[0]
+	station = row[0]
         latitude = row[2] if row[2] != '' else None
         longitude = row[3] if row[3] != '' else None
         elevation = row[4] if row[4] != '' else None
