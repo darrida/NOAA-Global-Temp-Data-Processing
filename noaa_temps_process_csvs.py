@@ -5,6 +5,7 @@ sys.settrace
 from csv import reader
 from pathlib import Path
 from pprint import pprint
+from datetime import timedelta, datetime
 import os
 
 # Local
@@ -21,7 +22,7 @@ class config():
     
     # Directory options
     #NOAA_TEMP_CSV_DIR = Path.home() / 'github' / 'NOAA-Global-Temp-Data-Processing' / 'test' / 'data_downloads'/ 'noaa_daily_avg_temps'
-    NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path('/') / 'mnt' / 'sda1' / 'data_downloads' / 'noaa_daily_avg_temps'
+    NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path('/') / 'media' / 'share' / '9d44d8ed-18c1-4094-8465-b80c1ec3619e' / 'data_downloads' / 'noaa_daily_avg_temps'
 
 local_config = config
 print(local_config.NOAA_TEMP_CSV_DIR)
@@ -30,6 +31,7 @@ print(local_config.NOAA_TEMP_CSV_DIR)
 import prefect
 from prefect import task, Flow, Parameter
 from prefect.tasks.postgres import PostgresExecute, PostgresFetch, PostgresExecuteMany
+from prefect.schedules import IntervalSchedule
 from prefect.tasks.secrets import PrefectSecret
 from prefect.engine.signals import LOOP
 #from prefect.engine.executors import LocalDaskExecutor
@@ -124,58 +126,69 @@ def select_session_csvs(local_csvs: list, job_size: int) -> list:
     return return_list
                 
 
+# @task(log_stdout=True) # pylint: disable=no-value-for-parameter
+# def open_csv(filename: str):
+#     print(filename)
+#     with open(filename) as read_obj:
+#         csv_reader = reader(read_obj)
+#         # Get all rows of csv from csv_reader object as list of tuples
+#         return list(map(tuple, csv_reader))
+#     raise LOOP(message)
+
+# @task(log_stdout=True) # pylint: disable=no-value-for-parameter
+# def insert_stations(list_of_tuples: list):#, password: str):
+#     insert = 0
+#     unique_key_violation = 0
+
+#     #print(len(list_of_tuples))
+#     insert = 0
+#     unique_key_violation = 0
+#     for row in list_of_tuples[1:2]:
+#         station = row[0]
+#         latitude = row[2] if row[2] != '' else None
+#         longitude = row[3] if row[3] != '' else None
+#         elevation = row[4] if row[4] != '' else None
+#         name = row[5]
+#         try:
+#             PostgresExecute(
+#                 db_name=local_config.DB_NAME, #'climatedb', 
+#                 user=local_config.DB_USER, #'postgres', 
+#                 host=local_config.DB_HOST, #'192.168.86.32', 
+#                 port=local_config.DB_PORT, #5432, 
+#                 query="""
+#                 insert into climate.noaa_global_temp_sites 
+#                     (station, latitude, longitude, elevation, name)
+#                 values (%s, %s, %s, %s, %s)
+#                 """, 
+#                 data=(station, latitude, longitude, elevation, name), 
+#                 commit=True,
+#             ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
+#             insert += 1
+#         except UniqueViolation:
+#             unique_key_violation += 1
+#         except InvalidTextRepresentation as e:
+#             print(e)
+#     print(f'STATION INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
+
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
-def open_csv(filename: str):
-    print(filename)
+def insert_records(filename):#list_of_tuples: list):#, waiting_for):
     with open(filename) as read_obj:
         csv_reader = reader(read_obj)
         # Get all rows of csv from csv_reader object as list of tuples
-        return list(map(tuple, csv_reader))
-    raise LOOP(message)
-
-@task(log_stdout=True) # pylint: disable=no-value-for-parameter
-def insert_stations(list_of_tuples: list):#, password: str):
-    insert = 0
-    unique_key_violation = 0
-
-    #print(len(list_of_tuples))
-    insert = 0
-    unique_key_violation = 0
-    for row in list_of_tuples[1:2]:
-        station = row[0]
-        latitude = row[2] if row[2] != '' else None
-        longitude = row[3] if row[3] != '' else None
-        elevation = row[4] if row[4] != '' else None
-        name = row[5]
-        try:
-            PostgresExecute(
-                db_name=local_config.DB_NAME, #'climatedb', 
-                user=local_config.DB_USER, #'postgres', 
-                host=local_config.DB_HOST, #'192.168.86.32', 
-                port=local_config.DB_PORT, #5432, 
-                query="""
-                insert into climate.noaa_global_temp_sites 
-                    (station, latitude, longitude, elevation, name)
-                values (%s, %s, %s, %s, %s)
-                """, 
-                data=(station, latitude, longitude, elevation, name), 
-                commit=True,
-            ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
-            insert += 1
-        except UniqueViolation:
-            unique_key_violation += 1
-        except InvalidTextRepresentation as e:
-            print(e)
-    print(f'STATION INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
-
-@task(log_stdout=True) # pylint: disable=no-value-for-parameter
-def insert_records(list_of_tuples: list, waiting_for):
+        list_of_tuples = list(map(tuple, csv_reader))
+    
     #insert = 0
+    if not list_of_tuples:
+        return
     unique_key_violation = 0
     new_list = []
     for row in list_of_tuples[1:]:
+        # print(row)
         date=row[1]
         station=row[0]
+        latitude=row[2] if row[2] != '' else None
+        longitude=row[3] if row[3] != '' else None
+        elevation=row[4] if row[4] != '' else None
         temp=row[6]
         temp_attributes=row[7]
         dewp=row[8]
@@ -198,9 +211,11 @@ def insert_records(list_of_tuples: list, waiting_for):
         prcp_attributes=row[25]
         sndp=row[26]
         frshtt=row[27]
-        new_tuple = (date, station, temp, temp_attributes, dewp, dewp_attributes, slp, slp_attributes, 
-                    stp, stp_attributes, visib, visib_attributes, wdsp, wdsp_attributes, mxspd, gust, 
-                    max_v, max_attributes, min_v, min_attributes, prcp, prcp_attributes, sndp, frshtt)
+        name=row[5]
+        new_tuple = (date, station, latitude, longitude, elevation, temp, temp_attributes, dewp, 
+                    dewp_attributes, slp, slp_attributes, stp, stp_attributes, visib, visib_attributes, 
+                    wdsp, wdsp_attributes, mxspd, gust, max_v, max_attributes, min_v, min_attributes, 
+                    prcp, prcp_attributes, sndp, frshtt, name)
         new_list.append(new_tuple)
         insert = len(new_list)
     try:
@@ -211,10 +226,10 @@ def insert_records(list_of_tuples: list, waiting_for):
             port=local_config.DB_PORT, #5432,  
             query="""
             insert into climate.noaa_global_daily_temps 
-                (date, station, temp, temp_attributes, dewp, dewp_attributes, slp, slp_attributes, 
+                (date, station, latitude, longitude, elevation, temp, temp_attributes, dewp, dewp_attributes, slp, slp_attributes, 
                     stp, stp_attributes, visib, visib_attributes, wdsp, wdsp_attributes, mxspd, gust, 
-                    max, max_attributes, min, min_attributes, prcp, prcp_attributes, sndp, frshtt)
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    max, max_attributes, min, min_attributes, prcp, prcp_attributes, sndp, frshtt, name)
+            values (%s, %s, %s, %s, %s,  %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, 
             data=new_list,
                  #(date, station, temp, temp_attributes, dewp, dewp_attributes, slp, slp_attributes, 
@@ -244,17 +259,23 @@ def insert_records(list_of_tuples: list, waiting_for):
         pass
     print(f'RECORD INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
-executor=LocalDaskExecutor(scheduler="processes", num_workers=16)#, local_processes=True)
-with Flow(name="NOAA Temps: Process CSVs", executor=executor) as flow:
+schedule = IntervalSchedule(
+    start_date=datetime.utcnow() + timedelta(seconds=1),
+    interval=timedelta(seconds=10),
+)
+
+#schedule = IntervalSchedule(interval=timedelta(minutes=2))
+executor=LocalDaskExecutor(scheduler="processes", num_workers=8)#, local_processes=True)
+with Flow(name="NOAA Temps: Process CSVs", executor=executor, schedule=schedule) as flow:
+    job_size = Parameter('JOB_SIZE', default=1000)
     t1_csvs = list_csvs()
-    t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=50)
-    t3_records = open_csv.map(filename=t2_session)
+    t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=job_size)
+    #t3_records = open_csv.map(filename=t2_session)
     #t4_stations = insert_stations.map(list_of_tuples=t3_records)
-    t5_records = insert_records.map(list_of_tuples=t3_records)#, waiting_for=t4_stations)
+    t5_records = insert_records.map(filename=t2_session)#list_of_tuples=t3_records)#, waiting_for=t4_stations)
 
 
 if __name__ == '__main__':
-    # if os.environ.get('PREFECT_LOCAL') == 'true':
-    #     prefect.config.cloud.use_local_secrets = True
+    #flow.register(project_name="Global Warming Data")
     state = flow.run()#executor=LocalDaskExecutor(scheduler="processes", num_workers=6))#, local_processes=True)
     assert state.is_successful()
