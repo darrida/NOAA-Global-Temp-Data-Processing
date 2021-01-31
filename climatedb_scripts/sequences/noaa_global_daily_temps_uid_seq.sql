@@ -10,4 +10,4 @@ CREATE SEQUENCE climate.noaa_global_daily_temps_uid_seq
     CACHE 1;
 
 ALTER SEQUENCE climate.noaa_global_daily_temps_uid_seq
-    OWNER TO postgres;
+    OWNER TO ben;

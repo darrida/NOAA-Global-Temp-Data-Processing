@@ -7,6 +7,9 @@ CREATE TABLE climate.noaa_global_daily_temps
     uid bigint NOT NULL DEFAULT nextval('climate.noaa_global_daily_temps_uid_seq'::regclass),
     date date NOT NULL,
     station integer NOT NULL,
+    latitude double precision,
+    longitude double precision,
+    elevation double precision,
     temp double precision NOT NULL,
     temp_attributes integer,
     dewp double precision,
@@ -29,13 +32,8 @@ CREATE TABLE climate.noaa_global_daily_temps
     prcp_attributes character varying COLLATE pg_catalog."default",
     sndp double precision,
     frshtt integer,
-    CONSTRAINT noaa_global_daily_temps_pkey PRIMARY KEY (date, station),
-    CONSTRAINT db_id_fkey FOREIGN KEY (station)
-        REFERENCES climate.noaa_global_temp_sites (station) MATCH SIMPLE
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
+    CONSTRAINT noaa_global_daily_temps_pkey PRIMARY KEY (uid),
 )
-
 TABLESPACE pg_default;
 
 ALTER TABLE climate.noaa_global_daily_temps

@@ -13,15 +13,21 @@ class config():
     # Postgres database connection info
     DB_NAME = os.environ.get('DB_NAME') or 'climatedb'
     DB_USER = os.environ.get('DB_USER') or 'postgres'
-    DB_HOST = os.environ.get('DB_HOST') or 'localhost' #'192.168.86.32'
+    if os.environ.get('ENV_TEST') == 'true':
+        DB_HOST = os.environ.get('DB_HOST') or '192.168.86.25'
+    else:
+        DB_HOST = os.environ.get('DB_HOST') or 'localhost'
     DB_PORT = os.environ.get('DB_PORT') or '5432'
 
     # Prefect flow options
     PREFECT_ENV = os.environ.get('PREFECT_ENV') or 'prod'
     
     # Directory options
-    #NOAA_TEMP_CSV_DIR = Path.home() / 'github' / 'NOAA-Global-Temp-Data-Processing' / 'test' / 'data_downloads'/ 'noaa_daily_avg_temps'
-    NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path.home() / 'data_downloads' / 'noaa_daily_avg_temps'
+    
+    if os.environ.get('ENV_TEST') == 'true':
+        NOAA_TEMP_CSV_DIR = Path.home() / 'github' / 'NOAA-Global-Temp-Data-Processing' / 'test' / 'data_downloads'/ 'noaa_daily_avg_temps'
+    else:
+        NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path.home() / 'data_downloads' / 'noaa_daily_avg_temps'
 
 local_config = config
 print(local_config.NOAA_TEMP_CSV_DIR)
@@ -167,7 +173,7 @@ def insert_stations(list_of_tuples: list):#, password: str):
     print(f'STATION INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
-def insert_records(list_of_tuples: list, waiting_for):
+def insert_records(list_of_tuples: list):#, waiting_for):
     insert = 0
     unique_key_violation = 0
     for row in list_of_tuples[1:]:
@@ -247,8 +253,8 @@ with Flow(name="noaa_load_local_db", executor=LocalDaskExecutor(scheduler="proce
     t1_csvs = list_csvs()
     t2_session = select_session_csvs(local_csvs=t1_csvs)
     t3_records = open_csv.map(filename=t2_session)
-    t4_stations = insert_stations.map(list_of_tuples=t3_records)
-    t5_records = insert_records.map(list_of_tuples=t3_records, waiting_for=t4_stations)
+    #t4_stations = insert_stations.map(list_of_tuples=t3_records)
+    t5_records = insert_records.map(list_of_tuples=t3_records)#, waiting_for=t4_stations)
 
 #flow.register(project_name="Global Warming Data")
 
