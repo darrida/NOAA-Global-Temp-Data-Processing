@@ -249,8 +249,8 @@ with Flow(name="NOAA Temps: Process CSVs", executor=executor) as flow:
     t1_csvs = list_csvs()
     t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=50)
     t3_records = open_csv.map(filename=t2_session)
-    t4_stations = insert_stations.map(list_of_tuples=t3_records)
-    t5_records = insert_records.map(list_of_tuples=t3_records, waiting_for=t4_stations)
+    #t4_stations = insert_stations.map(list_of_tuples=t3_records)
+    t5_records = insert_records.map(list_of_tuples=t3_records)#, waiting_for=t4_stations)
 
 
 if __name__ == '__main__':
