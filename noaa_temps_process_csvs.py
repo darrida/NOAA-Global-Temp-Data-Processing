@@ -21,7 +21,7 @@ class config():
     
     # Directory options
     #NOAA_TEMP_CSV_DIR = Path.home() / 'github' / 'NOAA-Global-Temp-Data-Processing' / 'test' / 'data_downloads'/ 'noaa_daily_avg_temps'
-    NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path.home() / 'data_downloads' / 'noaa_daily_avg_temps'
+    NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path('/') / 'mnt' / 'sda1' / 'data_downloads' / 'noaa_daily_avg_temps'
 
 local_config = config
 print(local_config.NOAA_TEMP_CSV_DIR)
@@ -142,7 +142,7 @@ def insert_stations(list_of_tuples: list):#, password: str):
     insert = 0
     unique_key_violation = 0
     for row in list_of_tuples[1:2]:
-	station = row[0]
+        station = row[0]
         latitude = row[2] if row[2] != '' else None
         longitude = row[3] if row[3] != '' else None
         elevation = row[4] if row[4] != '' else None
@@ -247,7 +247,7 @@ def insert_records(list_of_tuples: list, waiting_for):
 executor=LocalDaskExecutor(scheduler="processes", num_workers=16)#, local_processes=True)
 with Flow(name="NOAA Temps: Process CSVs", executor=executor) as flow:
     t1_csvs = list_csvs()
-    t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=200)
+    t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=50)
     t3_records = open_csv.map(filename=t2_session)
     t4_stations = insert_stations.map(list_of_tuples=t3_records)
     t5_records = insert_records.map(list_of_tuples=t3_records, waiting_for=t4_stations)

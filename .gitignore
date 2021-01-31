@@ -1,4 +1,4 @@
-venv1
 __pycache__
 .vscode
 *.swp
+test
