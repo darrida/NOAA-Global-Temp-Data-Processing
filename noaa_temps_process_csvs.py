@@ -92,6 +92,7 @@ def select_session_csvs(local_csvs: list, job_size: int) -> list:
         csv_list = csv.split('/') if '/' in csv else csv.split('\\')
         csv_str = f'{csv_list[-2]}-{csv_list[-1]}'
         csv_set.add(csv_str)
+    print(f'csvs from folder: {len(csv_set)}')
 
     year_db_csvs = PostgresFetch(
         db_name=local_config.DB_NAME, #'climatedb', 
@@ -110,22 +111,29 @@ def select_session_csvs(local_csvs: list, job_size: int) -> list:
     for year_db in year_db_csvs:
         year_db_str = f'{year_db[0]}-{year_db[1]}'
         year_db_set.add(year_db_str)
+    print(f'year set: {len(year_db_set)}')
 
     # SET DIFF, SORT
     new_set = csv_set.difference(year_db_set)
     new_set = sorted(new_set)
+    print(f'new_set: {len(new_set)}')
 
     # CONVERT TO LIST, SELECT SHORT SUBSET
     new_list = []
-    while len(new_list) < job_size:
-        new_list.append(new_set.pop())
-    new_list = [x.split('-') for x in new_set]
+    set_empty = False
+    while len(new_list) < job_size and not set_empty:
+        if len(new_set)>0:
+            new_list.append(new_set.pop())
+        else:
+            set_empty = True
+    new_list = [x.split('-') for x in new_list]
+    # new_list = [x.split('-') for x in new_set]
     new_list = new_list[:job_size]
 
     # REBUILD LIST OF FILE PATH LOCATIONS
     data_dir = Path(config.NOAA_TEMP_CSV_DIR)
     return_list = [f'{data_dir}/{x[0]}/{x[1]}' for x in new_list]
-
+    print(f'retun_list: {len(return_list)}')
     return return_list
                 
 
@@ -270,7 +278,7 @@ schedule = IntervalSchedule(
 #schedule = IntervalSchedule(interval=timedelta(minutes=2))
 executor=LocalDaskExecutor(scheduler="processes", num_workers=8)#, local_processes=True)
 with Flow(name="NOAA Temps: Process CSVs", executor=executor, schedule=schedule) as flow:
-    job_size = Parameter('JOB_SIZE', default=1000)
+    job_size = Parameter('JOB_SIZE', default=500)
     t1_csvs = list_csvs()
     t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=job_size)
     #t3_records = open_csv.map(filename=t2_session)

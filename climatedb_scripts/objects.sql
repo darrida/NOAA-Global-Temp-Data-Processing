@@ -45,3 +45,52 @@ CREATE TABLE IF NOT EXISTS climate.noaa_global_daily_temps (
   frshtt INTEGER,
   CONSTRAINT noaa_global_daily_temps_pkey PRIMARY KEY (date, station)
 ) USING HEAP;
+
+
+  -- Table: climate.noaa_global_daily_temps
+
+-- DROP TABLE climate.noaa_global_daily_temps;
+
+-- Table: climate.noaa_global_daily_temps
+
+-- DROP TABLE climate.noaa_global_daily_temps;
+
+CREATE TABLE climate.noaa_global_daily_temps
+(
+    uid serial primary key,
+    date date NOT NULL,
+    station bigint NOT NULL,
+  	latitude DOUBLE PRECISION,
+  	longitude DOUBLE PRECISION,
+  	elevation DOUBLE PRECISION,
+    temp double precision NOT NULL,
+    temp_attributes integer,
+    dewp double precision,
+    dewp_attributes integer,
+    slp double precision,
+    slp_attributes integer,
+    stp double precision,
+    stp_attributes integer,
+    visib double precision,
+    visib_attributes integer,
+    wdsp double precision,
+    wdsp_attributes integer,
+    mxspd double precision,
+    gust double precision,
+    max double precision,
+    max_attributes character varying COLLATE pg_catalog."default",
+    min double precision,
+    min_attributes character varying COLLATE pg_catalog."default",
+    prcp double precision,
+    prcp_attributes character varying COLLATE pg_catalog."default",
+    sndp double precision,
+    frshtt integer,
+	name CHARACTER VARYING,
+    CONSTRAINT unique_station_date UNIQUE (station, date)
+        INCLUDE(date, station)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE climate.noaa_global_daily_temps
+    OWNER to ben;
