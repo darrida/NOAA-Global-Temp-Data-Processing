@@ -20,8 +20,10 @@ class config():
     PREFECT_ENV = os.environ.get('PREFECT_ENV') or 'prod'
     
     # Directory options
-    #NOAA_TEMP_CSV_DIR = Path.home() / 'github' / 'NOAA-Global-Temp-Data-Processing' / 'test' / 'data_downloads'/ 'noaa_daily_avg_temps'
-    NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path('/') / 'mnt' / 'sda1' / 'data_downloads' / 'noaa_daily_avg_temps'
+    if os.environ.get('ENV_TEST') == 'true':
+        NOAA_TEMP_CSV_DIR = Path.home() / 'github' / 'NOAA-Global-Temp-Data-Processing' / 'test' / 'data_downloads'/ 'noaa_daily_avg_temps'
+    else: 
+        NOAA_TEMP_CSV_DIR = os.environ.get('NOAA_TEMP_CSV_DIR') or Path('/') / 'mnt' / 'sda1' / 'data_downloads' / 'noaa_daily_avg_temps'
 
 local_config = config
 print(local_config.NOAA_TEMP_CSV_DIR)
@@ -169,7 +171,7 @@ def insert_stations(list_of_tuples: list):#, password: str):
     print(f'STATION INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
-def insert_records(list_of_tuples: list, waiting_for):
+def insert_records(list_of_tuples: list):#, waiting_for):
     #insert = 0
     unique_key_violation = 0
     new_list = []
@@ -249,8 +251,8 @@ with Flow(name="NOAA Temps: Process CSVs", executor=executor) as flow:
     t1_csvs = list_csvs()
     t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=50)
     t3_records = open_csv.map(filename=t2_session)
-    t4_stations = insert_stations.map(list_of_tuples=t3_records)
-    t5_records = insert_records.map(list_of_tuples=t3_records, waiting_for=t4_stations)
+    #t4_stations = insert_stations.map(list_of_tuples=t3_records)
+    t5_records = insert_records.map(list_of_tuples=t3_records)#, waiting_for=t4_stations)
 
 
 if __name__ == '__main__':
