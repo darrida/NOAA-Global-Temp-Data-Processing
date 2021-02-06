@@ -228,7 +228,7 @@ def insert_records(filename):#list_of_tuples: list):#, waiting_for):
                     wdsp, wdsp_attributes, mxspd, gust, max_v, max_attributes, min_v, min_attributes, 
                     prcp, prcp_attributes, sndp, frshtt, name)
         new_list.append(new_tuple)
-        insert = len(new_list)
+        insert = 0
     try:
         PostgresExecuteMany(
             db_name=local_config.DB_NAME, #'climatedb', 
@@ -248,6 +248,7 @@ def insert_records(filename):#list_of_tuples: list):#, waiting_for):
                  #   max_v, max_attributes, min_v, min_attributes, prcp, prcp_attributes, sndp, frshtt),
             commit=True,
         ).run(password=PrefectSecret('NOAA_LOCAL_DB').run())
+        insert = len(new_list)
         # insert += 1
     except UniqueViolation:
         unique_key_violation += 1
