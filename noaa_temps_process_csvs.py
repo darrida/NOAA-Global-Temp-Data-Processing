@@ -174,16 +174,12 @@ def select_session_csvs(local_csvs: list, job_size: int) -> list:
 #     print(f'STATION INSERT RESULT: inserted {insert} records | {unique_key_violation} duplicates')
 
 @task(log_stdout=True) # pylint: disable=no-value-for-parameter
-<<<<<<< HEAD
-def insert_records(list_of_tuples: list):#, waiting_for):
-=======
 def insert_records(filename):#list_of_tuples: list):#, waiting_for):
     with open(filename) as read_obj:
         csv_reader = reader(read_obj)
         # Get all rows of csv from csv_reader object as list of tuples
         list_of_tuples = list(map(tuple, csv_reader))
     
->>>>>>> 5b086d9816d17dceeb8b3bff9755e562d63633f8
     #insert = 0
     if not list_of_tuples:
         return
@@ -276,17 +272,10 @@ executor=LocalDaskExecutor(scheduler="processes", num_workers=8)#, local_process
 with Flow(name="NOAA Temps: Process CSVs", executor=executor, schedule=schedule) as flow:
     job_size = Parameter('JOB_SIZE', default=1000)
     t1_csvs = list_csvs()
-<<<<<<< HEAD
-    t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=50)
-    t3_records = open_csv.map(filename=t2_session)
-    #t4_stations = insert_stations.map(list_of_tuples=t3_records)
-    t5_records = insert_records.map(list_of_tuples=t3_records)#, waiting_for=t4_stations)
-=======
     t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=job_size)
     #t3_records = open_csv.map(filename=t2_session)
     #t4_stations = insert_stations.map(list_of_tuples=t3_records)
     t5_records = insert_records.map(filename=t2_session)#list_of_tuples=t3_records)#, waiting_for=t4_stations)
->>>>>>> 5b086d9816d17dceeb8b3bff9755e562d63633f8
 
 
 if __name__ == '__main__':
