@@ -59,6 +59,7 @@ def list_csvs():
     for year in os.listdir(path=data_dir):
         csv_folder = (data_dir / str(year)).rglob('*.csv')
         csv_list = csv_list + [str(x) for x in csv_folder]
+    print(csv_list[0])
     return csv_list
 
 @task(log_stdout=True) # pylist: disable=no-value-for-parameter
@@ -79,7 +80,6 @@ def list_db_years(waiting_for: str) -> list: #list of sets
                                          #   may not be complete (we are not doing the full number of csvs for some dirs
                                          #   with each run)
                                          # - Then we move to the oldest checked folder in the list to move forward
-    print(db_years)
     return db_years
 
 @task(log_stdout=True) # pylist: disable=no-value-for-parameter
@@ -111,7 +111,7 @@ def select_session_csvs(local_csvs: list, job_size: int) -> list:
     for year_db in year_db_csvs:
         year_db_str = f'{year_db[0]}-{year_db[1]}'
         year_db_set.add(year_db_str)
-    print(f'year set: {len(year_db_set)}')
+    print(f'csv_checker set: {len(year_db_set)}')
 
     # SET DIFF, SORT
     new_set = csv_set.difference(year_db_set)
@@ -279,7 +279,7 @@ schedule = IntervalSchedule(
 #schedule = IntervalSchedule(interval=timedelta(minutes=2))
 executor=LocalDaskExecutor(scheduler="processes", num_workers=8)#, local_processes=True)
 with Flow(name="NOAA Temps: Process CSVs", executor=executor, schedule=schedule) as flow:
-    job_size = Parameter('JOB_SIZE', default=500)
+    job_size = Parameter('JOB_SIZE', default=200)
     t1_csvs = list_csvs()
     t2_session = select_session_csvs(local_csvs=t1_csvs, job_size=job_size)
     #t3_records = open_csv.map(filename=t2_session)

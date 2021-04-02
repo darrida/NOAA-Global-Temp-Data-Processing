@@ -23,6 +23,7 @@ dependencies:
   - docker-pycreds=0.4.0=py_0
   - heapdict=1.0.1=py_0
   - idna=2.10=pyh9f0ad1d_0
+  - ipykernel=5.3.4
   - importlib_resources=3.3.0=py38h578d9bd_0
   - krb5=1.17.1=hfafb76e_3
   - ld_impl_linux-64=2.35=h769bd43_9
