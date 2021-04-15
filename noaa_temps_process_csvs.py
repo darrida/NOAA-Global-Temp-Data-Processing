@@ -65,10 +65,10 @@ def list_csvs():
 @task(log_stdout=True) # pylist: disable=no-value-for-parameter
 def list_db_years(waiting_for: str) -> list: #list of sets
     db_years = PostgresFetch(
-        db_name=local_config.DB_NAME, #'climatedb', 
-        user=local_config.DB_USER, #'postgres', 
-        host=local_config.DB_HOST, #'192.168.86.32', 
-        port=local_config.DB_PORT, #5432, 
+        db_name=local_config.DB_NAME,
+        user=local_config.DB_USER,
+        host=local_config.DB_HOST,
+        port=local_config.DB_PORT,
         fetch="all",
         query="""
         select distinct year, date_update from climate.csv_checker
@@ -95,10 +95,10 @@ def select_session_csvs(local_csvs: list, job_size: int) -> list:
     print(f'csvs from folder: {len(csv_set)}')
 
     year_db_csvs = PostgresFetch(
-        db_name=local_config.DB_NAME, #'climatedb', 
-        user=local_config.DB_USER, #'postgres', 
-        host=local_config.DB_HOST, #'192.168.86.32', 
-        port=local_config.DB_PORT, #5432, 
+        db_name=local_config.DB_NAME,
+        user=local_config.DB_USER,
+        host=local_config.DB_HOST,
+        port=local_config.DB_PORT,
         fetch="all",
         query=f"""
         select year, station from climate.csv_checker
@@ -127,7 +127,6 @@ def select_session_csvs(local_csvs: list, job_size: int) -> list:
         else:
             set_empty = True
     new_list = [x.split('-') for x in new_list]
-    # new_list = [x.split('-') for x in new_set]
     new_list = new_list[:job_size]
 
     # REBUILD LIST OF FILE PATH LOCATIONS
@@ -197,9 +196,9 @@ def insert_records(filename):#list_of_tuples: list):#, waiting_for):
         # print(row)
         date=row[1]
         station=row[0]
-        latitude=row[2] if row[2] != '' else None
-        longitude=row[3] if row[3] != '' else None
-        elevation=row[4] if row[4] != '' else None
+        latitude=row[2]# if row[2] != '' else None
+        longitude=row[3]# if row[3] != '' else None
+        elevation=row[4]# if row[4] != '' else None
         temp=row[6]
         temp_attributes=row[7]
         dewp=row[8]

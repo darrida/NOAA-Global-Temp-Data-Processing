@@ -22,19 +22,18 @@ class config():
 
 local_config = config
 print(local_config.NOAA_TEMP_CSV_DIR)
-local_config.NOAA_TEMP_CSV_DIR = Path('/mnt/c/Users/Ben/Documents/working_datasets/noaa_global_temps')
 
 # PyPI
 from prefect import task, Flow, Parameter
-# from prefect.tasks.postgres import PostgresExecute, PostgresFetch, PostgresExecuteMany
+from prefect.tasks.postgres import PostgresExecute, PostgresFetch, PostgresExecuteMany
 from prefect.schedules import IntervalSchedule
 from prefect.tasks.secrets import PrefectSecret
 from prefect.engine.signals import LOOP
 #from prefect.engine.executors import LocalDaskExecutor
 #from prefect.executors import LocalDaskExecutor
 from prefect.executors.dask import LocalDaskExecutor
-# import psycopg2 as pg
-# from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint: disable=no-name-in-module
+import psycopg2 as pg
+from psycopg2.errors import UniqueViolation, InvalidTextRepresentation # pylint: disable=no-name-in-module
 
 # url = 'https://www.ncei.noaa.gov/data/global-summary-of-the-day/access/'
 # export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
@@ -71,19 +70,11 @@ def calculate_year_csv(year_folder):
             latitude = unique_values_only_one(df1['LATITUDE'])
             longitude = unique_values_only_one(df1['LONGITUDE'])
             elevation = unique_values_only_one(df1['ELEVATION'])
-            if site_number == 'X':
-                print(f'Non-unique SITE_NUMBER: {folder_dir_path}/{year_folder}/{site}')
-            if latitude == 'X':
-                print(f'Non-unique LATITUDE: {folder_dir_path}/{year_folder}/{site}')
-            if longitude == 'X':
-                print(f'Non-unique LONGITUDE: {folder_dir_path}/{year_folder}/{site}')
-            if elevation == 'X':
-                print(f'Non-unique ELEVATION: {folder_dir_path}/{year_folder}/{site}')
-            # if site_number == 'X' \
-            #         or latitude == 'X' \
-            #         or longitude == 'X' \
-            #         or elevation == 'X':
-            #     print(f'Non-unique column:', folder_dir_path, year_folder, site)
+            if site_number == 'X' \
+                    or latitude == 'X' \
+                    or longitude == 'X' \
+                    or elevation == 'X':
+                print(f'Non-unique column:', folder_dir_path, year_folder, site)
             f.write(f'{site_number},{latitude},{longitude},{elevation},{average_temp}\n')           
 
 
@@ -93,7 +84,7 @@ schedule = IntervalSchedule(
 )
 
 #schedule = IntervalSchedule(interval=timedelta(minutes=2))
-executor=LocalDaskExecutor(scheduler="processes", num_workers=10)#, local_processes=True)
+executor=LocalDaskExecutor(scheduler="processes", num_workers=7)#, local_processes=True)
 with Flow(name="NOAA Temps: Process CSVs", executor=executor, schedule=schedule) as flow:
     # folder_path_flow = Parameter('folder_path_flow', default=os.environ.get('NOAA_TEMP_CSV_DIR') or Path('/') / 'media' / 'share' / 'store_240a' / 'data_downloads' / 'noaa_daily_avg_temps')
     # job_size = Parameter('JOB_SIZE', default=200)

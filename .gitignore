@@ -3,3 +3,4 @@ __pycache__
 *.swp
 test
 explor_year_temps_files
+results_*.csv
